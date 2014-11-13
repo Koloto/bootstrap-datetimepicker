@@ -1375,7 +1375,7 @@ THE SOFTWARE.
             }
             picker.widget.hide();
             picker.widget.removeClass('picker-open');
-            getPickerInput().blur();
+            //getPickerInput().blur();
             picker.viewMode = picker.startViewMode;
             showMode();
             picker.element.trigger({
