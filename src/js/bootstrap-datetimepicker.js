@@ -60,6 +60,7 @@
                 use24hours,
                 minViewModeNumber = 0,
                 actualFormat,
+                parseFormats,
                 currentViewMode,
                 datePickerModes = [
                     {
@@ -968,7 +969,7 @@
                     if (moment.isMoment(date) || date instanceof Date) {
                         date = moment(date);
                     } else {
-                        date = moment(date, actualFormat, options.useStrict);
+                        date = moment(date, parseFormats, options.useStrict);
                     }
                     date.locale(options.locale);
                     return date;
@@ -1036,22 +1037,17 @@
                     return (Object.keys(givenDatesIndexed).length) ? givenDatesIndexed : false;
                 },
 
-                format = function (newFormat) {
-                    if (arguments.length === 0) {
-                        return options.format;
-                    }
+                initFormatting = function () {
+                    var format = options.format || 'L LT';
 
-                    if ((typeof newFormat !== 'string') && ((typeof newFormat !== 'boolean') || (newFormat !== false))) {
-                        throw new TypeError('format() expects a sting or boolean:false parameter ' + newFormat);
-                    }
-
-                    options.format = newFormat;
-
-                    newFormat = newFormat || 'L LT';
-
-                    actualFormat = newFormat.replace(/(\[[^\[]*\])|(\\)?(LT|LL?L?L?|l{1,4})/g, function (input) {
+                    actualFormat = format.replace(/(\[[^\[]*\])|(\\)?(LT|LL?L?L?|l{1,4})/g, function (input) {
                         return date.localeData().longDateFormat(input) || input;
                     });
+
+                    parseFormats = options.extraFormats ? options.extraFormats.slice() : [];
+                    if (parseFormats.indexOf(format) < 0 && parseFormats.indexOf(actualFormat) < 0) {
+                        parseFormats.push(actualFormat);
+                    }
 
                     use24hours = (actualFormat.toLowerCase().indexOf('a') < 1 && actualFormat.indexOf('h') < 1);
 
@@ -1066,11 +1062,6 @@
                     }
 
                     currentViewMode = Math.max(minViewModeNumber, currentViewMode);
-
-                    if (!unset) {
-                        setValue(date);
-                    }
-                    return picker;
                 };
 
             /********************************************************************************
@@ -1148,7 +1139,40 @@
                 return picker;
             };
 
-            picker.format = format;
+            picker.format = function (newFormat) {
+                if (arguments.length === 0) {
+                    return options.format;
+                }
+
+                if ((typeof newFormat !== 'string') && ((typeof newFormat !== 'boolean') || (newFormat !== false))) {
+                    throw new TypeError('format() expects a sting or boolean:false parameter ' + newFormat);
+                }
+
+                options.format = newFormat;
+                if (actualFormat) {
+                    initFormatting(); // reinit formatting
+                }
+                if (!unset) {
+                    setValue(date);
+                }
+                return picker;
+            };
+
+            picker.extraFormats = function (formats) {
+                if (arguments.length === 0) {
+                    return options.extraFormats;
+                }
+
+                if (formats !== false && !(formats instanceof Array)) {
+                    throw new TypeError('extraFormats() expects an array or false parameter');
+                }
+
+                options.extraFormats = formats;
+                if (parseFormats) {
+                    initFormatting(); // reinit formatting
+                }
+                return picker;
+            };
 
             picker.disabledDates = function (dates) {
                 if (arguments.length === 0) {
@@ -1300,7 +1324,10 @@
                 options.locale = locale;
                 date.locale(options.locale);
                 viewDate.locale(options.locale);
-                format(options.format); // re-evaluate actualFormat variable in case options.format is not set
+
+                if (actualFormat) {
+                    initFormatting(); // reinit formatting
+                }
                 if (widget) {
                     hide();
                     show();
@@ -1562,6 +1589,8 @@
 
             picker.options(options);
 
+            initFormatting();
+
             attachDatePickerElementEvents();
 
             if (input.prop('disabled')) {
@@ -1596,6 +1625,7 @@
 
     $.fn.datetimepicker.defaults = {
         format: false,
+        extraFormats: false,
         stepping: 1,
         minDate: false,
         maxDate: false,
